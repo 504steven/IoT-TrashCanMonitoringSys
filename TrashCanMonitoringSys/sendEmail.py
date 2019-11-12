@@ -14,8 +14,8 @@ def sendemail(msg):
         server.login("kittymayor2@gmail.com", "mayorkitty")
 
         sent_from = "kittymayor2@gmail.com"
-        to = ['ye.mei@sjsu.edu']
-        subject = 'Park Trash Can IoT System Bill'
+        to = ['111@sjsu.edu']
+        subject = 'Park Trash Can Monitoring System Bill'
         emailbody = basicPlanEmailbody
         message = 'Subject: {}\n\n{}'.format(subject, emailbody)
 

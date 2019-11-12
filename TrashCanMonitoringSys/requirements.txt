@@ -1,5 +1,7 @@
 Flask
 Flask-Admin
+flask_socketio
+flask_pymongo
 Flask-SQLAlchemy
 Flask-Security>=1.7.5
 enum34==1.1.6
