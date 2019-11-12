@@ -1,0 +1,393 @@
+{% extends 'admin/master.html' %} {% block body %}
+{{ super() }}
+
+{% if current_user.is_authenticated %}
+
+<!-- Content Header (Page header) -->
+<section class="content-header">
+  <h1>Sensors</h1>
+  <ol class="breadcrumb">
+    <li>
+      <a href="#"><i class="fa fa-dashboard"></i> Home</a>
+    </li>
+    <li class="active">Dashboard</li>
+  </ol>
+</section>
+
+<section class="content-fluid">
+  <!--&lt;!&ndash;Quick fix for removing the selector for numeric input&ndash;&gt;-->
+  <!--<style>-->
+  <!--input::-webkit-outer-spin-button,-->
+  <!--input::-webkit-inner-spin-button {-->
+  <!--/* display: none; <- Crashes Chrome on hover */-->
+  <!-- -webkit-appearance: none;-->
+  <!--margin: 0; /* <&#45;&#45; Apparently some margin are still there even though it's hidden */-->
+  <!--}-->
+  <!--input[type=number] {-->
+  <!-- -moz-appearance:textfield; /* Firefox */-->
+  <!--}-->
+  <!--</style>-->
+
+  <!-- Main row -->
+  <div class="row-fluid">
+    <!-- Map box -->
+    <div class="col-md-12   box-solid bg-light-blue-gradient">
+      <div class="box-header">
+        <!-- tools box -->
+        <div class="pull-right box-tools">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm daterange pull-right"
+            data-toggle="tooltip"
+            title="Date range"
+          >
+            <i class="fa fa-calendar"></i>
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm pull-right"
+            data-widget="collapse"
+            data-toggle="tooltip"
+            title="Collapse"
+            style="margin-right: 5px;"
+          >
+            <i class="fa fa-minus"></i>
+          </button>
+        </div>
+        <!-- /. tools -->
+
+        <!--<i class="fa fa-map-marker"></i>-->
+
+        <!--<h3 class="box-title">-->
+        <!--Visitors-->
+        <!--</h3>-->
+      </div>
+      <div class="box-body">
+        <!--<div id="world-map" style="height: 250px; width: 100%;"></div>-->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script
+          type="text/javascript"
+          src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"
+        ></script>
+
+        <!--/.google map-->
+        <div id="g-map" style="height: 500px; width: 100%;"></div>
+
+
+        <div style="height: 50px; width: 100%;"></div>
+
+        <!--data chart-->
+        <form>
+          Start Time:<input type="datetime-local", value="2019-05-07T13:17:00",  step="1", id="start_time" , style="color: black" /> End
+          Time: <input type="datetime-local", value="2019-05-07T13:22:00",  step="1", id="end_time" , style="color: black" />
+          <input type="button" value="Search Trash Data" id="id", style="color: black" />
+        </form>
+        <div id="container" style="height: 500px; width: 100%;"></div>
+
+
+        <!-- Echart lib -->
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/echarts/echarts.min.js"
+        ></script>
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/echarts-gl/echarts-gl.min.js"
+        ></script>
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/echarts-stat/ecStat.min.js"
+        ></script>
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/echarts/extension/dataTool.min.js"
+        ></script>
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/echarts/map/js/china.js"
+        ></script>
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/echarts/map/js/world.js"
+        ></script>
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/echarts/extension/bmap.min.js"
+        ></script>
+        <script
+          type="text/javascript"
+          src="http://echarts.baidu.com/gallery/vendors/simplex.js"
+        ></script>
+
+
+        <!--google map-->
+        <script async>
+          var viewCenter = {lat:40.782743, lng:-73.966138}; // {lat:37.223,lng: -121.830};   //40°46'52.4"N 73°57'57.2"W
+          var markers = {};
+          var preset_icons = ["green","yellow","orange","red"];
+
+          var map;
+          //dirty trick to have only one info window open
+          var lastOpenedInfoWindow = {};
+          var g_cluster_data;
+          var socket = io.connect('http://localhost:80');
+
+          function initMap() {
+              map = new google.maps.Map(document.getElementById('g-map'), {
+                  center: viewCenter,
+                  zoom: 14,
+                  styles:[]
+              });
+
+              // Resize stuff...
+              google.maps.event.addDomListener(window, "resize", function() {
+                  var center = map.getCenter();
+                  google.maps.event.trigger(map, "resize");
+                  map.setCenter(center);
+              });
+
+              socket.emit("init_viewer","");
+              socket.emit("get_reading","");
+              socket.on('return_data', function(msg){
+                  //remove previous markers
+                  if (msg['id'] in markers){
+                      temp = markers[msg['id']];
+                      temp.setMap(null)
+                  }
+
+                  console.log(markers);
+                  var fill_degree = 0;
+                  fill_percent = msg['percentage'];
+                  if(fill_percent<0.25){
+                      fill_degree = 0;
+                  }
+                  else if(fill_percent<0.5){
+                      fill_degree = 1;
+                  }
+                  else if(fill_percent<0.8){
+                      fill_degree = 2;
+                  }
+                  else{
+                      fill_degree = 3;
+                  }
+
+                  //update trash can marker
+                  markerLatLng = {lat:msg['lat'],lng:msg['lng']};
+                  var marker = new google.maps.Marker({
+                      position: markerLatLng,
+                      map: map,
+                      title: 'Sensor ',
+                      icon: 'http://maps.google.com/mapfiles/ms/icons/'+preset_icons[fill_degree]+'-dot.png'
+                  });
+
+                  var contentString = '<div class="container-fluid">\n    <div class="row">\n        <div class="col-md-12" style="color: #000000;font-size: large">\n            <table class="table">\n                <thead>\n                <tr>\n                    <th>\n                        Sensor\n                    </th>\n                    <th>\n                        Reading\n                    </th>\n                </tr>\n                </thead>\n                <tbody>\n                <tr>\n                    <td>\n                        Weight\n                    </td>\n                    <td>\n                        '+Math.floor(msg["weight"]*100)/100+'lbs\n                    </td>\n                </tr>\n                <tr class="table-active">\n                    <td>\n                        Fill Percent\n                    </td>\n                    <td>\n                        '+Math.round(msg["percentage"] * 10000) / 100+'%\n                    </td>\n                </tr>\n\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>';
+                  var infowindow = new google.maps.InfoWindow();
+                  google.maps.event.addListener(marker,'click', (function(marker,contentString,infowindow){
+                      return function() {
+                          infowindow.setContent(contentString);
+                          if (!$.isEmptyObject(lastOpenedInfoWindow)){
+                              lastOpenedInfoWindow.close()
+                          }
+                          infowindow.open(map,marker);
+                          lastOpenedInfoWindow = infowindow;
+                      };
+                  })(marker,contentString,infowindow));
+                  console.log(msg);
+              });
+            }
+
+
+          // update analytics
+          var id_arr = [];
+          // id_arr.push("Trashcan #1");
+          var time_arr = [];
+          // time_arr.push("12:00", "13:00");
+          var TrashCanData_dic = {};
+          var TrashCanData_arr = [];
+          // TrashCanData.push({
+          //   name: "Trashcan #1",
+          //   type: "line",
+          //   stack: "总量",
+          //   areaStyle: {},
+          //   data: [5,6,7,8]
+          // });
+
+          function getData() {
+              var start = document.getElementById("start_time").value;
+              var end = document.getElementById("end_time").value;
+              if (start == null) {   return;  }
+              if (end == null) {    return; }
+              console.log("start time:" + start + ". end time: " + end);
+              socket.emit("query_data", {"start_time":start, "end_time":end});
+
+              socket.on('get_data', function(msg) {
+                    var data_arr = msg['sensor_data'];
+                    // delete old data
+                    id_arr = [];
+                    time_arr = [];
+                    TrashCanData_arr = [];
+                    TrashCanData_dic = {};
+                    for(var i = 0; i < data_arr.length; i++) {
+                       console.log("id:" +  data_arr[i]['id']+ ", data row time: " + data_arr[i]['time']);
+                       addData(data_arr[i]);  // must in time order
+                    }
+
+                    cleaningData();
+                    console.log("cleaned data:");
+                    console.log(time_arr);
+                    console.log(TrashCanData_dic);
+
+                    for (var i = 0; i < id_arr.length; i++) {
+                     // console.log("converting:");
+                     // console.log(TrashCanData_dic[ id_arr[i].toString()]);
+                      TrashCanData_arr[i] = TrashCanData_dic[id_arr[i].toString()];
+                    }
+                    console.log("converted data:");
+                    console.log(TrashCanData_arr);
+                    console.log(id_arr);
+                    console.log(time_arr);
+                    loadChart();
+               });
+          }
+
+          document.getElementById("id").addEventListener("click", getData);
+
+          function addData(row) {
+            if ( ! id_arr.includes(row.id.toString()) ) {
+              id_arr.push(row.id.toString() );
+            }
+            if (!time_arr.includes(row.time)) {
+              time_arr.push(row.time);
+            }
+            can = TrashCanData_dic[row.id.toString()];
+            if(can == null) {
+              can = {};
+              can.data = [];
+              TrashCanData_dic[row.id.toString()] = can;
+            }
+            can.name = row.id.toString();
+            can.type = "line";
+            can.stack = "总量";
+            can.areaStyle = {};
+            can.data.push(row.weight);
+ //           console.log("add data:")
+//            console.log(TrashCanData_dic[row.id.toString()]);
+          }
+
+          function cleaningData() {
+            for(var i = 0; i < id_arr.length; i++) {
+                while( TrashCanData_dic[id_arr[i]].data.length < time_arr.length) {
+                   console.log("id:"+id_arr[i] + ", data size:" + TrashCanData_dic[id_arr[i]].data.length);
+                   TrashCanData_dic[id_arr[i]].data.unshift(0);
+                }
+            }
+          }
+
+
+          // Echart
+          function loadChart() {
+            console.log('reload');
+            var dom = document.getElementById("container");
+            var myChart = echarts.init(dom);
+            var app = {};
+            option = null;
+            option = {
+              title: {
+                text: "Trash Data Analytics"
+              },
+              tooltip: {
+                trigger: "axis",
+                axisPointer: {
+                  type: "cross",
+                  label: {
+                    backgroundColor: "white" // "#6a7985"
+                  }
+                }
+              },
+              legend: { data: id_arr },  //id_arr
+              toolbox: {
+                feature: {
+                  saveAsImage: {}
+                }
+              },
+              grid: {
+                left: "3%",
+                right: "3%",
+                bottom: "3%",
+                containLabel: true
+              },
+              xAxis: [{ type: "category", boundaryGap: false, data: time_arr }],  //time_arr
+              yAxis: [{ type: "value" }],
+              series: TrashCanData_arr // TrashCanData_arr
+            };
+            //if (option && typeof option === "object") {
+              myChart.setOption({}, true);
+              myChart.setOption(option, true);
+            //}
+          }
+        </script>
+
+        <script
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDykaxCezXZrUJiMYHIOq4wIxxx_hESbdk&callback=initMap"
+          async
+          defer
+        ></script>
+
+      </div>
+    </div>
+  </div>
+</section>
+<!-- /.content -->
+
+{% else %}
+
+<center>
+  <section class="content" style="color: white">
+    <div class="col-sm-12">
+      <h1>Flask-Admin example</h1>
+      <p class="lead">
+        Authentication
+      </p>
+      <p>
+        This example shows how you can use Flask-Admin in an admin template,
+        <br />
+        here I used AdminLTE and
+        <a
+          href="https://pythonhosted.org/Flask-Security/index.html"
+          target="_blank"
+          >Flask-Security</a
+        >
+        for authentication.
+      </p>
+      {% if not current_user.is_authenticated %}
+      <p>
+        You can register as a regular user, or log in as a superuser with the
+        following credentials: <br /><br />
+
+        email: <b>admin</b> <br />
+        password: <b>admin</b> <br />
+        <br />
+      </p>
+
+      <p>
+        <a class="btn btn-primary" href="{{ url_for('security.login') }}"
+          >Login</a
+        >
+        <a class="btn btn-default" href="{{ url_for('security.register') }}"
+          >Register</a
+        >
+      </p>
+      {% endif %}
+      <br />
+      <p>
+        <a class="btn btn-primary" href="/"
+          ><i class="glyphicon glyphicon-chevron-left"></i> Back</a
+        >
+      </p>
+    </div>
+  </section>
+</center>
+
+<br /><br /><br /><br /><br /><br /><br /><br /><br />
+<br /><br /><br /><br /><br /><br /><br /><br /><br /><br />
+{% endif %} {% endblock body %}
