@@ -1,12 +1,9 @@
 import smtplib
 
-customerName = 'Ye Mei'
-duration = '04/01/0219 - 05/01/2019'
-
+customerName = 'Ruizhe'
+duration = '10/13/0219 - 11/13/2019'
 
 def sendemail(msg):
-
-
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.ehlo()
