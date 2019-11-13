@@ -5,7 +5,7 @@ duration = '04/01/0219 - 05/01/2019'
 
 
 def sendemail(msg):
-    basicPlanEmailbody = msg
+
 
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
@@ -14,15 +14,13 @@ def sendemail(msg):
         server.login("kittymayor2@gmail.com", "mayorkitty")
 
         sent_from = "kittymayor2@gmail.com"
-        to = ['111@sjsu.edu']
-        subject = 'Park Trash Can Monitoring System Bill'
-        emailbody = basicPlanEmailbody
-        message = 'Subject: {}\n\n{}'.format(subject, emailbody)
+        to = ['ruizhe.song@sjsu.edu@sjsu.edu']
+        sub = 'Bill of Trash Can Monitoring System'
+        message = 'Subject: {}\n\n{}'.format(sub, msg)
 
-        print("email to send:\n" + message)
         server.sendmail(sent_from,to, message)
-        print("email is sent.")
         server.close()
+        print("email is sent successfully..")
     except:
-        print('sth went wrong:')
+        print('sending email failed:')
 

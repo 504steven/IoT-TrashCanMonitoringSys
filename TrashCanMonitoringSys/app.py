@@ -278,17 +278,11 @@ def handle_return_reading(data):
 
 
 
-
-
 def getId():
     global nextId
     curId = nextId
     nextId += 1
     return curId
-
-
-
-
 
 
 
