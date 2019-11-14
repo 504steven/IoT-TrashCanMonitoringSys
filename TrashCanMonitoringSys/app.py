@@ -1,4 +1,3 @@
-#!venv/bin/python
 import os
 from flask import Flask, url_for, redirect, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
@@ -9,6 +8,7 @@ import flask_admin
 from flask_admin.contrib import sqla
 from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
+
 from flask_socketio import SocketIO, emit, send, Namespace, join_room, leave_room
 from flask_pymongo import PyMongo
 import sendEmail
@@ -201,42 +201,23 @@ def build_sample_db():
         db.session.commit()
     return
 
-# @socketio.on('message')
-# def handle_message(message):
-#     print("got message from {} : {}".format(request.namespace,message))
-#     send(message)
 
-# @socketio.on("heartbeat")
-# def handle_heartbeat(message):
-#     print(message)
-#     pass
-
-# @socketio.on('ui_request')
-# def handle_ui_request(message):
-#     print("got message from {} : {}".format(request.namespace,message))
-
-
-# @socketio.on('json')
-# def handle_json(json):
-#     send(json, json=True)
-
-
-@socketio.on('init_viewer')
-def handle_init_viewer(json):
-    print("init viewer",request.sid)
+@socketio.on('init_viewer_by_server')
+def handle_init_viewer(data):
     join_room(request.sid)
     viewers.append(request.sid)
+    print("a new viewer is connected to server",request.sid)
 
 
-@socketio.on("get_reading")
+@socketio.on("get_cur_reading_from_server")
 def handle_get_readings(data):
     print("get readings request",data)
     for d in devices:
         print("sending to",d)
-        emit("get_reading",room=d)
+        emit("get_cur_reading_from_device",room=d)
 
 
-@socketio.on("return_data")
+@socketio.on("auto_return_data")
 def handle_return_data(data):
     print("returning data to browser:",data)
     # notify users via email
@@ -249,22 +230,22 @@ def handle_return_data(data):
         client_id_noticed.remove(data['id'])
 
     for v in viewers:
-        emit("return_data_to_fontEnd",data,room=v)
+        emit("send_data_to_frontEnd",data,room=v)
     sensor_data.insert_one(data)
 
 
-# @socketio.on("return_reading")
-# def handle_return_reading(data):
-#     print("returning data to browser:",data)
-#     # notify users via email
-#     if data['percentage'] >= 0.8:
-#         print("Percentage higher than 0.8, sending email")
-#         sendEmail.sendemail("Dear {}, your garbage can is getting to 80% full.".format(current_user))
-#     for v in viewers:
-#         emit("return_data",data,room=v)
+@socketio.on("return_reading_to_server")
+def handle_return_reading(data):
+    print("cur reading data:",data)
+    # notify users via email
+    if data['percentage'] >= 0.8:
+        print("Percentage higher than 0.8, sending email")
+        sendEmail.sendemail("Dear {}, your garbage can is getting to 80% full.".format(current_user))
+    for v in viewers:
+        emit("send_data_to_frontEnd",data,room=v)
    
  
-@socketio.on("query_data")  ###########
+@socketio.on("query_data_on_server")  ###########
 def handle_query_data(data):
     print("received query:", data['start_time'])
     res = sensor_data.find({
@@ -273,26 +254,19 @@ def handle_query_data(data):
         "$lte": data['end_time']
     }}, {'_id':0} ).sort([("time",1)]);
 
-
     # update = True    #### lock??  [{'k':1},{'k':2}]
     data_to_send = {'sensor_data': list(res)}
-    print("data to send - size:", res.count(), " - data:", data_to_send)
+    print("data to send to browser - size:", res.count(), " - data:", data_to_send)
     for v in viewers:
-        emit("get_data",data_to_send, room=v)
+        emit("get_query_result",data_to_send, room=v)
 
 
-def getId():  
-    global nextId
-    curId = nextId
-    nextId += 1
-    return curId
-
-@socketio.on('init_client')
+@socketio.on('init_device_on_server')
 def handle_init_client(json):
     print("received init client request",request.sid)
     join_room(request.sid)
     new_id = getId()
-    emit("get_id", {'id':new_id}, room = request.sid)
+    emit("assign_id_to_device", {'id':new_id}, room = request.sid)
     devices.append(request.sid)
     print("a new device is connected: ",new_id, devices)
 
@@ -305,6 +279,13 @@ def handle_dc_client(json):
     print("devices:",devices)
 
 
+def getId():
+    global nextId
+    curId = nextId
+    nextId += 1
+    return curId
+
+
 if __name__ == '__main__':
     # Build a sample db on the fly, if one does not exist yet.
     app_dir = os.path.realpath(os.path.dirname(__file__))
@@ -312,9 +293,8 @@ if __name__ == '__main__':
     if not os.path.exists(database_path):
         build_sample_db()
 
-
     # Start app
     app.run(debug=True,port=3000)
     print("Server started")
-    # socketio.run(app,debug=False,port=80)
+    socketio.run(app,debug=False,port=3000)
 
