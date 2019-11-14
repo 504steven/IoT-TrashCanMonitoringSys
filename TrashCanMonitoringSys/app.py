@@ -10,7 +10,7 @@ from flask_admin.contrib import sqla
 from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
 from flask_socketio import SocketIO, emit, send, Namespace, join_room, leave_room
-# from flask_pymongo import PyMongo
+from flask_pymongo import PyMongo
 import sendEmail
 
 # Create Flask application
@@ -19,13 +19,15 @@ socketio = SocketIO(app)
 app.config.from_pyfile('config.py')
 db = SQLAlchemy(app)
 
-app.config["MONGO_DBNAME"] = "GarbageCanIoT"
-app.config["MONGO_URI"] = "mongodb://localhost:27017/GarbageCanIoT"
-# mongo = PyMongo(app)
-# sensor_data = mongo.db.sensor_data
-# sensor_data.create_index([('time', 1)])
-# nextId = 1
-# client_id_noticed = set()
+app.config["MONGO_DBNAME"] = "TrashCanIoT"
+app.config["MONGO_URI"] = "mongodb://18.224.102.19:27017/TrashCanIoT"
+mongo = PyMongo(app)
+
+sensor_data = mongo.db.sensor_data
+sensor_data.create_index( [('time', 1)])
+
+nextId = 1
+client_id_noticed = set()
 
 # python clients (trash cans)
 devices = []
@@ -100,7 +102,6 @@ class MyModelView(sqla.ModelView):
     can_view_details = True
     details_modal = True
 
-
 class UserView(MyModelView):
     column_editable_list = ['email', 'first_name', 'last_name']
     column_searchable_list = column_editable_list
@@ -117,15 +118,11 @@ class CustomView(BaseView):
         device_count = len(devices)
         single_cost = 50
         total_cost = device_count * single_cost
-        obj = {"user_id": user_id, "device_count": device_count, "single_cost": single_cost, "total_cost": total_cost}
-        return self.render('admin/payment.html', obj=obj)
+        obj = {"user_id":user_id,"device_count":device_count, "single_cost":single_cost, "total_cost":total_cost}
+        return self.render('admin/payment.html',obj=obj)
 
 
 # Flask views
-# @app.route('/')
-# def index():
-#     return render_template('index.html')
-
 @app.route("/")
 def index():
     return redirect(url_for('admin.index'))
@@ -142,9 +139,7 @@ admin = flask_admin.Admin(
 # Add model views
 admin.add_view(MyModelView(Role, db.session, menu_icon_type='fa', menu_icon_value='fa-server', name="Roles"))
 admin.add_view(UserView(User, db.session, menu_icon_type='fa', menu_icon_value='fa-users', name="Users"))
-admin.add_view(
-    CustomView(name="Billing", endpoint='billing', menu_icon_type='fa', menu_icon_value='fa-connectdevelop', ))
-
+admin.add_view(CustomView(name="Billing", endpoint='billing', menu_icon_type='fa', menu_icon_value='fa-connectdevelop',))
 
 # define a context processor for merging flask-admin's template context into the
 # flask-security views.
@@ -156,7 +151,6 @@ def security_context_processor():
         h=admin_helpers,
         get_url=url_for
     )
-
 
 def build_sample_db():
     """
@@ -207,23 +201,19 @@ def build_sample_db():
         db.session.commit()
     return
 
+# @socketio.on('message')
+# def handle_message(message):
+#     print("got message from {} : {}".format(request.namespace,message))
+#     send(message)
 
-@socketio.on('message')
-def handle_message(message):
-    print("got message from {} : {}".format(request.namespace, message))
+# @socketio.on("heartbeat")
+# def handle_heartbeat(message):
+#     print(message)
+#     pass
 
-    send(message)
-
-
-@socketio.on("heartbeat")
-def handle_heartbeat(message):
-    print(message)
-    pass
-
-
-@socketio.on('ui_request')
-def handle_ui_request(message):
-    print("got message from {} : {}".format(request.namespace, message))
+# @socketio.on('ui_request')
+# def handle_ui_request(message):
+#     print("got message from {} : {}".format(request.namespace,message))
 
 
 # @socketio.on('json')
@@ -233,57 +223,86 @@ def handle_ui_request(message):
 
 @socketio.on('init_viewer')
 def handle_init_viewer(json):
-    print("init viewer", request.sid)
+    print("init viewer",request.sid)
     join_room(request.sid)
     viewers.append(request.sid)
 
 
 @socketio.on("get_reading")
 def handle_get_readings(data):
-    print("get readings request", data)
+    print("get readings request",data)
     for d in devices:
-        print("sending to", d)
-        emit("get_reading", room=d)
+        print("sending to",d)
+        emit("get_reading",room=d)
 
 
 @socketio.on("return_data")
 def handle_return_data(data):
-    print("returning data to browser:", data)
+    print("returning data to browser:",data)
     # notify users via email
     global client_id_noticed
-    # print(data['percentage'], data['percentage']>0.8, client_id_noticed.add( data['id']))
     if data['percentage'] >= 0.8 and data['id'] not in client_id_noticed:
         client_id_noticed.add(data['id'])
         print("Percentage higher than 0.8, sending email", type(data['id']))
-        sendEmail.sendemail(
-            "Dear {}, your garbage can, id={}, is above 80% full. Please plan for collection.".format(current_user,
-                                                                                                      data['id'][-1]))
+        sendEmail.sendemail("Dear {}, your Trash Can, id={}, is above 80% full. Please parepare for collection.".format(current_user, data['id'][-1]) )
     if data['percentage'] < 0.8 and data['id'] in client_id_noticed:
         client_id_noticed.remove(data['id'])
 
     for v in viewers:
-        emit("return_data", data, room=v)
-    # sensor_data.insert_one(data)
+        emit("return_data_to_fontEnd",data,room=v)
+    sensor_data.insert_one(data)
 
 
-@socketio.on("return_reading")
-def handle_return_reading(data):
-    print("returning data to browser:", data)
-    # notify users via email
-    if data['percentage'] >= 0.8:
-        print("Percentage higher than 0.8, sending email")
-        sendEmail.sendemail("Dear {}, your garbage can is getting to 80% full.".format(current_user))
+# @socketio.on("return_reading")
+# def handle_return_reading(data):
+#     print("returning data to browser:",data)
+#     # notify users via email
+#     if data['percentage'] >= 0.8:
+#         print("Percentage higher than 0.8, sending email")
+#         sendEmail.sendemail("Dear {}, your garbage can is getting to 80% full.".format(current_user))
+#     for v in viewers:
+#         emit("return_data",data,room=v)
+   
+ 
+@socketio.on("query_data")  ###########
+def handle_query_data(data):
+    print("received query:", data['start_time'])
+    res = sensor_data.find({
+    "time": {
+        "$gt": data['start_time'],
+        "$lte": data['end_time']
+    }}, {'_id':0} ).sort([("time",1)]);
+
+
+    # update = True    #### lock??  [{'k':1},{'k':2}]
+    data_to_send = {'sensor_data': list(res)}
+    print("data to send - size:", res.count(), " - data:", data_to_send)
     for v in viewers:
-        emit("return_data", data, room=v)
+        emit("get_data",data_to_send, room=v)
 
 
-
-def getId():
+def getId():  
     global nextId
     curId = nextId
     nextId += 1
     return curId
 
+@socketio.on('init_client')
+def handle_init_client(json):
+    print("received init client request",request.sid)
+    join_room(request.sid)
+    new_id = getId()
+    emit("get_id", {'id':new_id}, room = request.sid)
+    devices.append(request.sid)
+    print("a new device is connected: ",new_id, devices)
+
+
+@socketio.on('dc_client')
+def handle_dc_client(json):
+    print("disconnect client",request.sid)
+    leave_room(json['id'])
+    del devices[json['id']]
+    print("devices:",devices)
 
 
 if __name__ == '__main__':
@@ -293,7 +312,9 @@ if __name__ == '__main__':
     if not os.path.exists(database_path):
         build_sample_db()
 
+
     # Start app
-    app.run(debug=True,port=80)
+    app.run(debug=True,port=3000)
     print("Server started")
+    # socketio.run(app,debug=False,port=80)
 
