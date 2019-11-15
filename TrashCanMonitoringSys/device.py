@@ -7,8 +7,8 @@ import DataFromArduino
 
 start_time = time.time()
 sio = socketio.Client()
-lat = 40.782743 + random.uniform(-1, 1)*0.003
-lng = -73.966138 + random.uniform(-1, 1)*0.003
+lat = 37.335246 + random.uniform(-1, 1)*0.002
+lng = -121.881199 + random.uniform(-1, 1)*0.002
 max_weight = 100
 client_id = None
 rate = 1;
