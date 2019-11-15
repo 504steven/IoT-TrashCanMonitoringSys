@@ -95,14 +95,14 @@
 
         <!--google map-->
         <script type="text/javascript">
-            var viewCenter = {lat:37.335246, lng:-121.881199};    // {lat:37.223,lng: -121.830};   ,
+            var viewCenter = {lat:37.335246, lng:-121.881199};    // {lat:37.223,lng: -121.830};
             var markers = {};
             var preset_icons = ["green","yellow","orange","red"];
 
             var map;
             //dirty trick to have only one info window open
-            var lastOpenedInfoWindow = {};
-            var g_cluster_data;
+            var lastOpenedInfoWindow;
+            var lastMarkerPos;
             var socket = io.connect('http://localhost:3000');
 
             function initMap() {
@@ -112,62 +112,78 @@
                     styles:[]
                 });
 
-            // Resize stuff...
-            google.maps.event.addDomListener(window, "resize", function() {
-                var center = map.getCenter();
-                google.maps.event.trigger(map, "resize");
-                map.setCenter(center);
-            });
-
-            socket.emit("init_viewer_by_server","");
-            socket.emit("get_cur_reading_from_server","");
-
-            socket.on('send_data_to_frontEnd', function(msg){
-                //remove previous markers
-                if (msg['id'] in markers){
-                    temp = markers[msg['id']];
-                    temp.setMap(null)
-                }
-
-                console.log(markers);
-                var fill_degree = 0;
-                fill_percent = msg['percentage'];
-                if(fill_percent<0.25){
-                    fill_degree = 0;
-                }else if(fill_percent<0.5){
-                    fill_degree = 1;
-                }else if(fill_percent<0.8){
-                    fill_degree = 2;
-                }else{
-                    fill_degree = 3;
-                }
-
-                //update trash can marker
-                markerLatLng = {lat:msg['lat'],lng:msg['lng']};
-                var marker = new google.maps.Marker({
-                    position: markerLatLng,
-                    map: map,
-                    title: 'Sensor ',
-                    icon: 'http://maps.google.com/mapfiles/ms/icons/'+preset_icons[fill_degree]+'-dot.png'
+                // Resize stuff...
+                google.maps.event.addDomListener(window, "resize", function() {
+                    var center = map.getCenter();
+                    google.maps.event.trigger(map, "resize");
+                    map.setCenter(center);
                 });
 
-                var contentString = '<div class="container-fluid">\n    <div class="row">\n        <div class="col-md-12" style="color: #000000;font-size: large">\n            <table class="table">\n                <thead>\n                <tr>\n                    <th>\n                        Sensor\n                    </th>\n                    <th>\n                        Reading\n                    </th>\n                </tr>\n                </thead>\n                <tbody>\n                <tr>\n                    <td>\n                        Weight\n                    </td>\n                    <td>\n                        '+Math.floor(msg["weight"]*100)/100+'lbs\n                    </td>\n                </tr>\n                <tr class="table-active">\n                    <td>\n                        Fill Percent\n                    </td>\n                    <td>\n                        '+Math.round(msg["percentage"] * 10000) / 100+'%\n                    </td>\n                </tr>\n\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>';
-                var infowindow = new google.maps.InfoWindow();
-                google.maps.event.addListener(marker,'click', openInfoWindow(marker, contentString,infowindow) );
-                console.log(msg);
-            });
-          }
+                socket.emit("init_viewer_by_server","");
+                socket.emit("get_cur_reading_from_server","");
 
-          function openInfoWindow(marker,contentString,infowindow){
-                      return function() {
-                          infowindow.setContent(contentString);
-                          if (!$.isEmptyObject(lastOpenedInfoWindow)){
-                              lastOpenedInfoWindow.close()
-                          }
-                          infowindow.open(map,marker);
-                          lastOpenedInfoWindow = infowindow;
-                      };
-                  }
+                socket.on('send_data_to_frontEnd', function(msg) {
+                    var fill_degree = 0;
+                    fill_percent = msg['percentage'];
+                    if(fill_percent<0.25){
+                        fill_degree = 0;
+                    }else if(fill_percent<0.5){
+                        fill_degree = 1;
+                    }else if(fill_percent<0.8){
+                        fill_degree = 2;
+                    }else{
+                        fill_degree = 3;
+                    }
+
+                    //update trash can marker
+                    markerLatLng = {lat:msg['lat'],lng:msg['lng']};
+                    var marker = new google.maps.Marker({
+                        position: markerLatLng,
+                        map: map,
+                        title: 'Sensor ',
+                        icon: 'http://maps.google.com/mapfiles/ms/icons/'+preset_icons[fill_degree]+'-dot.png'
+                    });
+
+                    var contentString = '<div class="container-fluid">\n    <div class="row">\n        <div class="col-md-12" style="color: #000000;font-size: large">\n            <table class="table">\n                <thead>\n                <tr>\n                    <th>\n                        Sensor\n                    </th>\n                    <th>\n                        Reading\n                    </th>\n                </tr>\n                </thead>\n                <tbody>\n                <tr>\n                    <td>\n                        Weight\n                    </td>\n                    <td>\n                        '+Math.floor(msg["weight"]*100)/100+'lbs\n                    </td>\n                </tr>\n                <tr class="table-active">\n                    <td>\n                        Fill Percent\n                    </td>\n                    <td>\n                        '+Math.round(msg["percentage"] * 10000) / 100+'%\n                    </td>\n                </tr>\n\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>';
+                    var infowindow = new google.maps.InfoWindow();
+                    google.maps.event.addListener(marker,'click', openInfoWindow);
+                    console.log("received data: " + msg.toString());
+
+                    var isInfoWindowOpened  = false;
+                    var latlng = new google.maps.LatLng( markerLatLng);
+                    if( latlng.equals(lastMarkerPos) && !$.isEmptyObject(lastOpenedInfoWindow) && lastOpenedInfoWindow.getMap()) {
+                        console.log("last window opened");
+                        isInfoWindowOpened = true;
+                    }
+
+                    //remove previous markers
+                    if (msg['id'] in markers){
+                        temp = markers[msg['id']];
+                        console.log("remove marker: " + temp);
+                        temp.setMap(null)
+                    }
+                    markers[msg['id']] = marker;
+                    console.log("stored markers: " + markers);
+
+                    // re-open InfoWindow if opened
+                    if (isInfoWindowOpened) {
+                        openInfoWindow();
+                    }
+
+                    function openInfoWindow() {
+                        infowindow.setContent(contentString);
+                        if (!$.isEmptyObject(lastOpenedInfoWindow)){
+                            lastOpenedInfoWindow.close()
+                        }
+                        infowindow.open(map,marker);
+                        lastOpenedInfoWindow = infowindow;
+                        lastMarkerPos = marker.getPosition();
+                    }
+
+                });
+            }
+
+
 
 
           // update analytics

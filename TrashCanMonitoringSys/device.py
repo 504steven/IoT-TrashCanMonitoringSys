@@ -38,7 +38,7 @@ def get_id(data):
 @sio.on('get_cur_reading_from_device')
 def get_cur_reading(data):
     print('get reading')
-    sio.emit("return_reading_to_server", data=get_data_from_Arduino())
+    sio.emit("return_reading_to_server", data=get_simulated_data())
 
 
 # send heartbeat to server
@@ -48,7 +48,7 @@ def auto_report_data(*args):
     while int(now) % 5 != 0:
         now = '{0:%S}'.format(datetime.datetime.now())
     while True:
-        sio.emit("auto_return_data", data=get_data_from_Arduino())
+        sio.emit("auto_return_data", data=get_simulated_data())
         time.sleep(wait_time)
     # print("report in {} seconds".format(wait_time), "data:", cur_data)
 
