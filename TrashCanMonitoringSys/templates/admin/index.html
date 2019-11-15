@@ -153,7 +153,12 @@
 
                 var contentString = '<div class="container-fluid">\n    <div class="row">\n        <div class="col-md-12" style="color: #000000;font-size: large">\n            <table class="table">\n                <thead>\n                <tr>\n                    <th>\n                        Sensor\n                    </th>\n                    <th>\n                        Reading\n                    </th>\n                </tr>\n                </thead>\n                <tbody>\n                <tr>\n                    <td>\n                        Weight\n                    </td>\n                    <td>\n                        '+Math.floor(msg["weight"]*100)/100+'lbs\n                    </td>\n                </tr>\n                <tr class="table-active">\n                    <td>\n                        Fill Percent\n                    </td>\n                    <td>\n                        '+Math.round(msg["percentage"] * 10000) / 100+'%\n                    </td>\n                </tr>\n\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>';
                 var infowindow = new google.maps.InfoWindow();
-                google.maps.event.addListener(marker,'click', (function(marker,contentString,infowindow){
+                google.maps.event.addListener(marker,'click', openInfoWindow(marker, contentString,infowindow) );
+                console.log(msg);
+            });
+          }
+
+          function openInfoWindow(marker,contentString,infowindow){
                       return function() {
                           infowindow.setContent(contentString);
                           if (!$.isEmptyObject(lastOpenedInfoWindow)){
@@ -162,10 +167,7 @@
                           infowindow.open(map,marker);
                           lastOpenedInfoWindow = infowindow;
                       };
-                  })(marker,contentString,infowindow));
-                console.log(msg);
-            });
-          }
+                  }
 
 
           // update analytics

@@ -5,7 +5,7 @@
 #define CLK  2
 HX711 scale;
 
-#include <NewPing.h>
+//#include <NewPing.h>
 // defines pins numbers
 const int trigPin = 12;
 const int echoPin = 11;
@@ -44,5 +44,5 @@ void loop() {
   Serial.print(distance);
   Serial.print(" cm");
   Serial.println();
-  delay(1000);
+  delay(5000);
 }

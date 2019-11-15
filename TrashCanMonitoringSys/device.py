@@ -9,7 +9,7 @@ start_time = time.time()
 sio = socketio.Client()
 lat = 37.335246 + random.uniform(-1, 1)*0.002
 lng = -121.881199 + random.uniform(-1, 1)*0.
-max_dis = 1
+max_dis = 100
 client_id = None
 rate = 1;
 
@@ -38,7 +38,7 @@ def get_id(data):
 @sio.on('get_cur_reading_from_device')
 def get_cur_reading(data):
     print('get reading')
-    sio.emit("return_reading_to_server", data=get_simulated_data())
+    sio.emit("return_reading_to_server", data=get_data_from_Arduino())
 
 
 # send heartbeat to server
@@ -48,8 +48,7 @@ def auto_report_data(*args):
     while int(now) % 5 != 0:
         now = '{0:%S}'.format(datetime.datetime.now())
     while True:
-        # cur_data = get_simulated_data()
-        sio.emit("auto_return_data", data=get_simulated_data())
+        sio.emit("auto_return_data", data=get_data_from_Arduino())
         time.sleep(wait_time)
     # print("report in {} seconds".format(wait_time), "data:", cur_data)
 
@@ -62,7 +61,7 @@ def get_data_from_Arduino():
     data = DataFromArduino.get_sensor_data()
     now = '{0:%Y-%m-%dT%H:%M:%S}'.format(datetime.datetime.now())
     print("sensor data date and time:",now)
-    return {"id": client_id, "lat": lat, "lng": lng, "weight": data[0], "percentage": get_percentage(data[1]) * rate, "time": now }
+    return {"id": client_id, "lat": lat, "lng": lng, "weight": data[0]*rate, "percentage": get_percentage(data[1])*rate, "time": now }
 
 
 def get_simulated_data():
