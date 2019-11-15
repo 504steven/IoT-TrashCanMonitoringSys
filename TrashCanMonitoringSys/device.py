@@ -9,7 +9,7 @@ start_time = time.time()
 sio = socketio.Client()
 lat = 37.335246 + random.uniform(-1, 1)*0.002
 lng = -121.881199 + random.uniform(-1, 1)*0.002
-max_weight = 100
+max_weight = 50
 client_id = None
 rate = 1;
 
