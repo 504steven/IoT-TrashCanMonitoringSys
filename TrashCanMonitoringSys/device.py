@@ -8,8 +8,8 @@ import DataFromArduino
 start_time = time.time()
 sio = socketio.Client()
 lat = 37.335246 + random.uniform(-1, 1)*0.002
-lng = -121.881199 + random.uniform(-1, 1)*0.002
-max_weight = 50
+lng = -121.881199 + random.uniform(-1, 1)*0.
+max_dis = 1
 client_id = None
 rate = 1;
 
@@ -55,14 +55,14 @@ def auto_report_data(*args):
 
 
 def get_percentage(num):
-    return num/max_weight
+    return num/max_dis
 
 
 def get_data_from_Arduino():
-    dis = int( DataFromArduino.get_sensor_data())
+    data = DataFromArduino.get_sensor_data()
     now = '{0:%Y-%m-%dT%H:%M:%S}'.format(datetime.datetime.now())
     print("sensor data date and time:",now)
-    return {"id": client_id, "lat": lat, "lng": lng, "weight": dis, "percentage": get_percentage(dis) * rate, "time": now }
+    return {"id": client_id, "lat": lat, "lng": lng, "weight": data[0], "percentage": get_percentage(data[1]) * rate, "time": now }
 
 
 def get_simulated_data():

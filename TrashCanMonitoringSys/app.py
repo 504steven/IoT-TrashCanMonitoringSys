@@ -225,7 +225,7 @@ def handle_return_data(data):
     if data['percentage'] >= 0.8 and data['id'] not in client_id_noticed:
         client_id_noticed.add(data['id'])
         print("Percentage higher than 0.8, sending email", type(data['id']))
-        sendEmail.sendemail("Dear {}, your Trash Can, id={}, is above 80% full. Please parepare for collection.".format(current_user, data['id'][-1]) )
+        sendEmail.sendemail("Dear {}, your Trash Can, id={}, is above 80% full. Please parepare for collection.".format("Admin", data['id'][-1]) )
     if data['percentage'] < 0.8 and data['id'] in client_id_noticed:
         client_id_noticed.remove(data['id'])
 

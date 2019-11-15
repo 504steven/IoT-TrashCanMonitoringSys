@@ -11,7 +11,7 @@ def sendemail(msg):
         server.login("kittymayor2@gmail.com", "mayorkitty")
 
         sent_from = "kittymayor2@gmail.com"
-        to = ['ruizhe.song@sjsu.edu@sjsu.edu']
+        to = ['kittymayor2@gmail.com']   #['ruizhe.song@sjsu.edu@sjsu.edu']
         sub = 'Bill of Trash Can Monitoring System'
         message = 'Subject: {}\n\n{}'.format(sub, msg)
 
