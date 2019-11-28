@@ -1,1 +1,1 @@
-![alt text](http://url/to/img.png)
+![alt text](https://github.com/504steven/IoT-TrashCanMonitoringSys/blob/master/IoT%20Trash%20Can%20Architecture.JPG)
